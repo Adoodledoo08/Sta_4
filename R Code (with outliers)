@@ -1,0 +1,56 @@
+# Add the needed packages (including those needed in case of an unbalanced design)
+library(car)
+library(multcompView)
+library(lsmeans)
+library(ggplot2)
+library(sjstats) # This is needed for the partial eta squared
+
+# Set your working directory to where your file is; in our case, it's "C:\Users\saman\Downloads\KUL Masters - 1st Sem\Statistics 4\Data Assignment 1"
+setwd("C:\\Users\\saman\\Downloads\\KUL Masters - 1st Sem\\Statistics 4\\Data Assignment 1")
+
+# Import the file and prepare it for the analysis (deliminate as needed, convert to factors, etc.)
+housing_data<-read.table("Dataset.106.csv", header=TRUE, sep=",")
+housing_data$Area<- factor(ifelse(housing_data$Area=="Suburban" | housing_data$Area == "Rural","Rural","Urban"))
+housing_data$LivingWith<-as.factor(housing_data$LivingWith)
+housing_data$Area<-as.factor(housing_data$Area)
+
+# It's good practice to first check the visualization of your data. We can use a box plot (we will use the package ggplot2 here for better visualization)...
+ggplot(data=housing_data, aes(x=LivingWith, y=PHQ9, colour=Area)) + geom_boxplot()
+
+# Or, to better explore a possible interaction effect, an interaction plot
+with(housing_data, interaction.plot(x.factor=LivingWith, trace.factor=Area, response=PHQ9, fun=mean,type="b", legend=T, ylab="PHQ9 Score", main="Interaction Plot", pch=c(19,19), col=c(2,1)))
+
+# Check the unbalancedness of the design with a frequency table before proceeding with the analysis
+ffreq<-table(list(housing_data$LivingWith, housing_data$Area)) # Here we see that we have an unblanaced design
+
+# Because our design is unbalanced, we have to create a model and then run our analysis
+result1<-anova(lm(PHQ9 ~ LivingWith*Area, data=housing_data)) #This also allows us to test our interaction effect (if any) using Type 1 SS.
+
+#We can also use the following code and test for Type 2 because we know the interaction effect is not significant.
+housing_model<-lm(PHQ9 ~ LivingWith*Area, data=housing_data)
+result2<-Anova(housing_model, type=2) 
+
+# Partial eta-squared
+eta_sq(result2, partial = TRUE)
+
+# Partial R-squared
+
+
+# The results from above shows us that there's no interaction effect, there's no main effect for Area,and there's a main effect for LivingWith.
+# Proceed with performing comparisons within LivingWith
+contrast1<-c(.5, -1, .5) # coefficients (-1 for living alone and 1/2 each for with friends and with family)
+contrast2<-c(-1, 0, 1) # coefficients (0 for living alone, 1 for with friends, and -1 for family)
+contrasts(housing_data$LivingWith)<-cbind(contrast1, contrast2) # This assigns the contrast coefficients to the levels
+contrasts(housing_data$LivingWith) # This line checks if the contrasts were assigned correctly
+result3<-lm(PHQ9 ~ LivingWith + Area, housing_data)
+summary.lm(result3)
+# CHECK THE TAIL OF THE COMPARISON TESTS
+
+# Check assumptions ----
+# Homogeneity of variances
+plot(housing_model, 1) # This gives us the residuals plot
+leveneTest(PHQ9 ~ LivingWith*Area, data=housing_data) # If Levene's test is not significant, we meet the assumption of homogeneity of variances (equal variances)
+# THE LEVENE'S TEST IS SIGNIFICANT IN SPSS BUT NOT HERE
+
+#Check the normality assumption
+plot(housing_model, 2) # This gives us the Q-Q Plot
