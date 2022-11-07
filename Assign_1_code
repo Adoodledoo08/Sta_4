@@ -61,3 +61,43 @@ leveneTest(PHQ9 ~ LivingWith*Area, data=housing_data)
 #Check the normality assumption
 plot(modelTest, 2)
 
+
+# Check outliers (I = 25-1.5IQR, 75+1.5IQR)
+boxplot(housing_data)
+summary(housing_data$PHQ9)
+outliersPHQ9<-boxplot.stats(housing_data$PHQ9)$out
+outrows<-which(housing_data$PHQ9 %in% c(outliersPHQ9)) # Tells us the rows of the outliers
+outrows
+housing_data[outrows,] # This extracts the outlier rows from the dataframe
+boxplot(housing_data$PHQ9,
+        ylqb = "PHQ9",
+        main = "Boxplot of PHQ9 scores")
+mtext(paste("Outliers: ", paste(outliersPHQ9, collapse = ", ")))
+
+# Find the lower and upper bound
+lower_bound<-quantile(housing_data$PHQ9, 0.025)
+lower_bound
+upper_bound<-quantile(housing_data$PHQ9, 0.975)
+upper_bound
+
+# Check outliers based on our lower and upper bound
+outlier_ind<-which(housing_data$PHQ9 < lower_bound | housing_data$PHQ9 > upper_bound)
+outlier_ind # This tells us the rows that have outliers
+
+housing_data[outlier_ind, "PHQ9"] # This tells us the numbers that are beyond our IQR
+housing_data[outlier_ind, ]
+
+iqr<-IQR(housing_data$PHQ9)
+upper<-quantile(housing_data$PHQ9, 0.75) + 1.5*iqr
+lower<-quantile(housing_data$PHQ9, 0.25) - 1.5*iqr
+
+housing_data2<-subset(housing_data, subset = PHQ9 > lower & PHQ9 < upper)
+housing_data2
+boxplot(housing_data2)
+ggplot(data=housing_data2, aes(x=LivingWith, y=PHQ9, colour=Area)) + geom_boxplot()
+
+# ANOTHER METHOD (shorter BUT it doesn't show which rows have outliers; it automatically removes it)
+outliers<-boxplot(housing_data$LivingWith, plot=FALSE)$out
+outrows2<-housing_data[-which(housing_data$PHQ9 %in% outliersPHQ9),]
+boxplot(outrows2)
+ggplot(data=outrows2, aes(x=LivingWith, y=PHQ9, colour=Area)) + geom_boxplot()
